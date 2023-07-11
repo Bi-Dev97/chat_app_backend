@@ -4,6 +4,8 @@ import asyncHandler from "express-async-handler";
 import bcrypt from "bcrypt";
 import isValidMongoId from "../utils/mongodbIdValidator";
 import { isValidObjectId } from "mongoose"; // This library do the same job as isValidMongoId
+import { ParamsDictionary } from "express-serve-static-core";
+const sendMail = require("./emailController");
 
 /**    interface CustomRequest: This line defines a new TypeScript 
 interface called CustomRequest. Interfaces in TypeScript are 
@@ -13,10 +15,10 @@ used to define the shape of an object and specify its properties
     Request interface from the Express library. By extending the 
     Request interface, CustomRequest inherits all the properties 
     and methods defined in the Request interface.
-    user: { id: string }: This line adds a new property user to the
+    user: { _id: string }: This line adds a new property user to the
      CustomRequest interface. The user property is defined with the
-      type { id: string }, which represents an object with a single
-       id property of type string. This is an example type, and you
+      type { _id: string }, which represents an object with a single
+       _id property of type string. This is an example type, and you
         should replace it with the appropriate type for the user 
         object in your application.
 The purpose of extending the Request interface and adding 
@@ -55,6 +57,16 @@ export const createUser: RequestHandler = asyncHandler(
       res.status(400).json({ message: "User with this email already exists" });
       return;
     }
+    // Send confirmation email with registration link
+
+    const emailOptions = {
+      to: email,
+      subject: "Confirm your registration",
+      text: "Please click on the following link to confirm your registration: http://localhost:3000/",
+    };
+
+    // Send the confirmation email
+    sendMail(emailOptions);
 
     // Hash the password
     const salt = await bcrypt.genSalt(10);
@@ -74,14 +86,16 @@ export const createUser: RequestHandler = asyncHandler(
 );
 
 export const getUsers: RequestHandler = asyncHandler(async (req, res) => {
-  const users = await User.find();
+  const users = await User.find({}, { refreshToken: 0, token: 0 }).populate("messages");
   res.json(users);
 });
 
 export const getUserById: RequestHandler = asyncHandler(async (req, res) => {
   const { id } = req.params;
   isValidMongoId(id);
-  const user = await User.findById(id);
+  const user = await User.findById(id).select('-refreshToken -token');
+  // Excluding the refreshToken and accessToken fields from the query result
+  
   if (!user) {
     res.status(404).json({ message: "User not found" });
     return;
@@ -186,7 +200,7 @@ export const unblockUser: RequestHandler = asyncHandler(async (req, res) => {
 export const getProfile: RequestHandler = asyncHandler(async (req, res) => {
   const customReq = req as CustomRequest;
   const userId = customReq?.user?._id;
-  isValidObjectId(userId)
+  isValidObjectId(userId);
 
   // Fetch the user profile from the database
   const user = await User.findById(userId);
@@ -198,3 +212,64 @@ export const getProfile: RequestHandler = asyncHandler(async (req, res) => {
 
   res.json(user);
 });
+
+/**The type declaration RequestHandler<ParamsDictionary, 
+any, any, Request["query"]> defines the type of the 
+updateUserRole function as a request handler that accepts 
+specific parameter types and returns a specific response type.
+Here's a breakdown of the type declaration:
+    RequestHandler: This is a type provided by Express 
+    that represents a request handler function.
+    <ParamsDictionary, any, any, Request["query"]>: These 
+    are type parameters passed to the RequestHandler type,
+     specifying the expected types for the request parameters
+      and response.
+        ParamsDictionary: This specifies the type for the request 
+        parameters. It is used to define the type of req.params object.
+        any: This specifies the type for the response body. In this case,
+         it is set to any, indicating that the response body can be of 
+         any type.
+        any: This specifies the type for the response headers. In this case,
+         it is set to any, indicating that the response headers can be of 
+         any type.
+        Request["query"]: This specifies the type for the request query 
+        parameters. It uses 
+                the Request["query"] syntax to refer to the type of the 
+                query property in the Request object. The query property 
+                represents the parsed query string parameters.
+Putting it all together, updateUserRole: RequestHandler<ParamsDictionary,
+ any, any, Request["query"]> defines updateUserRole as a request handler
+  function that expects ParamsDictionary for request parameters, any for
+   the response body, any for the response headers, and the type of 
+   req.query matching the type of the query parameters.
+By specifying these types, you provide type safety and enable 
+the TypeScript compiler to perform type checks and ensure the 
+correctness of the function's usage.
+ */
+export const updateUserRole: RequestHandler<
+  ParamsDictionary,
+  any,
+  any,
+  Request["query"]
+> = async (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+
+  try {
+    // Find the user by userId
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update the user's role
+    user.role = role;
+    await user.save();
+
+    res.json(user);
+  } catch (error) {
+    console.error("Error updating user role:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};

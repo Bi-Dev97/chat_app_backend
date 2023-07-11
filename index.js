@@ -20,6 +20,6 @@ methods and properties provided by  */
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5500;
 (0, dbConnect_1.default)();
-app.listen(PORT, () => {
+app.listen(5500, () => {
     console.log(`Server is Running at http://localhost:${PORT}`);
 });

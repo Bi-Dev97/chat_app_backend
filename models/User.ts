@@ -2,6 +2,7 @@ import { Schema, model, Document } from "mongoose";
 import { IMessage } from "./Message";
 import { Types } from "mongoose";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 
 /**The code you provided defines an interface called
  IUser that extends another interface called Document.
@@ -42,9 +43,9 @@ export interface IUser extends Document {
       associating messages with the object or entity that contains this property. */
   createdAt: Date;
   updatedAt: Date;
-  passwordChangedAt: Date;
-  passwordResetToken: String;
-  passwordResetExpires: Date;
+  passwordChangedAt: Date | number;
+  passwordResetToken: String | undefined;
+  passwordResetTokenExpires: Date | undefined;
   token: String;
   refreshToken: String;
 }
@@ -85,7 +86,7 @@ of queries involving email-based searches or filtering. */,
     messages: [{ type: Schema.Types.ObjectId, ref: "Message" }],
     passwordChangedAt: Date,
     passwordResetToken: String,
-    passwordResetExpires: Date,
+    passwordResetTokenExpires: Date,
     token: String,
     refreshToken: String,
     createdAt: {
@@ -110,5 +111,12 @@ Here's a breakdown of the code:
    - `'User'` is the name of the collection (or table) in the database where the documents created from this model will be stored.
    - `userSchema` is the schema object that defines the structure and configuration of the user documents.
 So, this code creates a Mongoose model named `User` that is associated with the `'User'` collection in the database. The model enforces the structure and configuration defined in the `userSchema`, which is based on the `IUser` interface. This model can be used to perform various operations such as creating, reading, updating, and deleting user documents in the MongoDB database. */
+userSchema.methods.createPasswordResetToken = async function () {
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  this.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+  this.passwordResetTokenExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  await this.save(); // Save the updated user instance
+  return resetToken;
+};
 
 export default User;

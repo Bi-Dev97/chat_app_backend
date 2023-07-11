@@ -8,9 +8,12 @@ import {
   updatePassword,
   blockUser,
   unblockUser,
-  getProfile
+  getProfile,
+  updateUserRole,
 } from "../controllers/userController";
 import authMiddleware from "../middlewares/authMiddleware";
+import isAdminMiddleware from "../middlewares/isAdminMiddleware";
+
 /**This file defines routes related to user management. 
 It can include routes for user registration, login, 
 profile updates, etc. Each route is associated with 
@@ -24,15 +27,15 @@ userRouter.post("/", createUser);
 
 // Route: GET /api/users/profile
 // Get user profile
-userRouter.get('/profile', authMiddleware, getProfile);
+userRouter.get("/profile", authMiddleware, getProfile);
 
 // Route: GET /api/users
 // Get all users
-userRouter.get("/", getUsers);
+userRouter.get("/", authMiddleware, isAdminMiddleware, getUsers);
 
 // Route: GET /api/users/:id
 // Get a specific user
-userRouter.get("/:id", authMiddleware, getUserById);
+userRouter.get("/:id", authMiddleware, isAdminMiddleware, getUserById);
 
 // Route: PUT /api/users/:id
 // Update a specific user
@@ -40,20 +43,22 @@ userRouter.put("/update", authMiddleware, updateUser);
 
 // Route: PUT /api/users/:id/password
 // Update a specific user' password
-userRouter.put("/password",authMiddleware, updatePassword);
+userRouter.put("/password", authMiddleware, updatePassword);
 
 // Route: DELETE /api/users/:id
 // Delete a specific user
-userRouter.delete("/:id", deleteUser);
+userRouter.delete("/:id", authMiddleware, isAdminMiddleware, deleteUser);
 
 // Route: PUT /api/user/:id/block
 // Block a specific user
-userRouter.put("/:id/block", blockUser)
+userRouter.put("/:id/block", authMiddleware, isAdminMiddleware, blockUser);
 
 // Route: PUT /api/users/:id/unblock
 // Unblock a specific user
-userRouter.put("/:id/unblock", unblockUser)
+userRouter.put("/:id/unblock", authMiddleware, isAdminMiddleware, unblockUser);
 
-
+// Route: PUT /api/users/:id/role
+// Update a specific user role
+userRouter.put("/:id/role", authMiddleware, isAdminMiddleware, updateUserRole);
 
 export default userRouter;

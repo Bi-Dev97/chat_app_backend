@@ -66,8 +66,6 @@ const authMiddleware: RequestHandler =async (
     // Set the decoded payload on the request object
     customReq.user = findUser;
 
-    console.log(customReq.user);
-
     next();
   } catch (error) {
     res.status(401).json({ message: "Invalid token" });
