@@ -2,7 +2,6 @@
  It can include routes for sending messages, 
 fetching conversations, marking messages as read, etc. */
 import express from "express";
-import { Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import authMiddleware from "../middlewares/authMiddleware";
 import isAdminMiddleware from "../middlewares/isAdminMiddleware";
@@ -18,7 +17,6 @@ import {
   deleteImage,
   downloadImage,
 } from "../controllers/messageController";
-import { upload } from "../middlewares/multerMiddleware";
 const messageRouter = express.Router();
 
 // Send a message (requires authentication)

@@ -26,7 +26,7 @@ export interface IMessage extends Document {
   sender: IUser["_id"];
   receiver: IUser["_id"];
   likes: Types.Array<IUser["_id"]>;
-  replies: IMessage[];
+  replies: IMessage["_id"][];
   content: string;
   createdAt: Date;
   updatedAt: Date;

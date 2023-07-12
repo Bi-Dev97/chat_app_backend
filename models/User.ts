@@ -1,7 +1,6 @@
 import { Schema, model, Document } from "mongoose";
 import { IMessage } from "./Message";
 import { Types } from "mongoose";
-import bcrypt from "bcrypt";
 import crypto from "crypto";
 
 /**The code you provided defines an interface called
@@ -41,6 +40,8 @@ export interface IUser extends Document {
       of type IMessage['_id']. This suggests that the messages property 
       is intended to store an array of unique identifiers of message documents. It allows for referencing and 
       associating messages with the object or entity that contains this property. */
+  contacts: Types.Array<Types.ObjectId>;
+  rooms:Types.Array<Types.ObjectId>;
   createdAt: Date;
   updatedAt: Date;
   passwordChangedAt: Date | number;
@@ -84,6 +85,8 @@ of queries involving email-based searches or filtering. */,
     },
     isBlocked: { type: Boolean, default: false },
     messages: [{ type: Schema.Types.ObjectId, ref: "Message" }],
+    contacts: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    rooms: [{ type: Schema.Types.ObjectId, ref: "Room" }],
     passwordChangedAt: Date,
     passwordResetToken: String,
     passwordResetTokenExpires: Date,
@@ -112,8 +115,11 @@ Here's a breakdown of the code:
    - `userSchema` is the schema object that defines the structure and configuration of the user documents.
 So, this code creates a Mongoose model named `User` that is associated with the `'User'` collection in the database. The model enforces the structure and configuration defined in the `userSchema`, which is based on the `IUser` interface. This model can be used to perform various operations such as creating, reading, updating, and deleting user documents in the MongoDB database. */
 userSchema.methods.createPasswordResetToken = async function () {
-  const resetToken = crypto.randomBytes(32).toString('hex');
-  this.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  this.passwordResetToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
   this.passwordResetTokenExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
   await this.save(); // Save the updated user instance
   return resetToken;

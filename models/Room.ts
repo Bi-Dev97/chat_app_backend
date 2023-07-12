@@ -17,13 +17,15 @@ export interface IRoom extends Document {
   name: string;
   members: IUser["_id"][];
   messages: IMessage["_id"][];
+  owner: IUser["_id"]; // Add the owner field
 }
 
 const roomSchema = new Schema<IRoom>(
   {
     name: { type: String, required: true },
-    members: [{ type: Schema.Types.ObjectId, ref: "User" }],
-    messages: [{ type: Schema.Types.ObjectId, ref: "Message" }],
+    members: [{ type: Schema.Types.ObjectId, ref: "User", default: [] }],
+    owner: { type: Schema.Types.ObjectId, ref: "User", required: true }, // Add the owner field
+    messages: [{ type: Schema.Types.ObjectId, ref: "Message", default: [] }],
   },
   { timestamps: true }
 );

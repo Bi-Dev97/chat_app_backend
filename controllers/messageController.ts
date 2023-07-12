@@ -5,7 +5,8 @@ import User from "../models/User";
 import { io } from "socket.io-client";
 import { upload } from "../middlewares/multerMiddleware";
 import fs from "fs";
-import path from 'path';
+import path from "path";
+import isValidMongoId from "../utils/mongodbIdValidator";
 
 /**
     path: The path module provides utilities for working with file
@@ -26,7 +27,6 @@ so you don't need to install any additional dependencies
 to use them. They are commonly used when working with files
  and directories in Node.js applications. */
 
-
 // API to create a new message
 interface CustomRequest extends Request {
   user: any; // Replace 'object' with the appropriate type for the user object
@@ -41,12 +41,10 @@ export const sendMessage: RequestHandler = async (
     return res.status(400).json({ errors: errors.array() });
   }
   const customReq = req as CustomRequest; // Cast 'req' to 'CustomRequest'
-
+  const { content } = req.body;
+  const sender = customReq?.user;
+  const receiver = req.params.receiver; // Get the receiver from the route parameter
   try {
-    const { content } = req.body;
-    const sender = customReq?.user;
-    const receiver = req.params.receiver; // Get the receiver from the route parameter
-
     // Create a new message
     const newMessage = new Message({ sender, receiver, content });
     await newMessage.save();
@@ -118,6 +116,7 @@ You can include the following query parameters in the request URL
     //  const sortOperator = sortValue > 0 ? "$gt" : sortValue < 0 ? "$lt" : "$eq";
 
     // Aggregate query with pagination and limit
+
     const messages = await Message.aggregate([
       { $sort: { createdAt: -1 } }, // Sort by createdAt in descending order
       // { $match: { [sortField]: { [sortOperator]: Math.abs(sortValue) } } }, // Match the specified condition
@@ -136,13 +135,35 @@ You can include the following query parameters in the request URL
     const recursivelyPopulateReplies = async (messages: any[]) => {
       for (const message of messages) {
         if (message.messages && message.messages.length > 0) {
-          await Message.populate(message.messages, { path: "replies" });
+          await Message.populate(message.messages, {
+            path: "sender",
+            select: "firstName lastName email mobile image",
+          });
+          await Message.populate(message.messages, {
+            path: "receiver",
+            select: "firstName lastName email mobile image",
+          });
+          await Message.populate(message.messages, {
+            path: "replies",
+            select: "content",
+          });
           await recursivelyPopulateReplies(message.messages);
 
           // Populate nested replies within each reply
           for (const replies of message.messages) {
             if (replies.replies && replies.replies.length > 0) {
-              await Message.populate(replies.replies, { path: "replies" });
+              await Message.populate(replies.replies, {
+                path: "sender",
+                select: "firstName lastName email mobile image",
+              });
+              await Message.populate(replies.replies, {
+                path: "receiver",
+                select: "firstName lastName email mobile image",
+              });
+              await Message.populate(replies.replies, {
+                path: "replies",
+                select: "content",
+              });
               await recursivelyPopulateReplies(replies.replies);
             }
           }
@@ -161,9 +182,9 @@ You can include the following query parameters in the request URL
 
 // API to delete a message
 export const deleteMessage = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  isValidMongoId(id);
   try {
-    const { id } = req.params;
-
     // Find and delete the message
     await Message.findByIdAndDelete(id);
 
@@ -176,11 +197,21 @@ export const deleteMessage = async (req: Request, res: Response) => {
 
 // API to get a message by ID
 export const getMessageById = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  isValidMongoId(id);
   try {
-    const { id } = req.params;
-
     // Find the message by ID
-    const message = await Message.findById(id);
+    /**we pass an object to the populate method for 
+    each field we want to populate. The object contains 
+    two properties: the first one specifies the field 
+    to populate, and the second one is a space-separated
+     string that lists the fields from the referenced model
+      that you want to populate ("firstName", "lastName", "email", 
+      and "image" in this case). */
+    const message = await Message.findById(id)
+      .populate("sender", "firstName lastName email image mobile")
+      .populate("receiver", "firstName lastName email image mobile");
+    console.log(message);
 
     if (!message) {
       res.status(404).json({ message: "Message not found" });
@@ -196,10 +227,10 @@ export const getMessageById = async (req: Request, res: Response) => {
 
 // API to update a message
 export const updateMessage = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { content } = req.body;
+  isValidMongoId(id);
   try {
-    const { id } = req.params;
-    const { content } = req.body;
-
     // Find and update the message
     const updatedMessage = await Message.findByIdAndUpdate(
       id,
@@ -268,12 +299,11 @@ interface CustomRequest extends Request {
 }
 export const createReply = async (req: Request, res: Response) => {
   const customReq = req as CustomRequest; // Cast 'req' to 'CustomRequest'
-
+  const { messageId } = req.params;
+  const { content } = req.body;
+  const sender = customReq.user;
   try {
-    const { messageId } = req.params;
-    const { content } = req.body;
-    const sender = customReq.user;
-
+ 
     // Find the message by ID
     const message = await Message.findById(messageId);
 
@@ -420,28 +450,30 @@ With this implementation, when a GET request is made to
 check if the image file exists and stream it to the client 
 as the response. The appropriate Content-Type header 
 is set to indicate that the response is an image. */
-export const downloadImage: RequestHandler = async (req: Request, res: Response) => {
+export const downloadImage: RequestHandler = async (
+  req: Request,
+  res: Response
+) => {
+  const { filename } = req.params;
+  const imagePath = path.join(__dirname, "..", "uploads", filename);
   try {
-    const { filename } = req.params;
-    const imagePath = path.join(__dirname, '..', 'uploads', filename);
-
+  
     // Check if the image file exists
     if (!fs.existsSync(imagePath)) {
-      return res.status(404).json({ message: 'Image not found' });
+      return res.status(404).json({ message: "Image not found" });
     }
 
     // Set the appropriate content-type header
-    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader("Content-Type", "image/jpeg");
 
     // Stream the image file to the response
     const fileStream = fs.createReadStream(imagePath);
     fileStream.pipe(res);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Failed to download image' });
+    res.status(500).json({ message: "Failed to download image" });
   }
 };
-
 
 export const deleteImage: RequestHandler = async (
   req: Request,

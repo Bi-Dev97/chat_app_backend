@@ -33,7 +33,11 @@ the user property to the CustomRequest interface is to augment
    to provide type safety and enforce consistent usage of the user 
    property in your code.*/
 interface CustomRequest extends Request {
-  user: { _id: string }; // Replace with the appropriate type for the user object
+  user: {
+    save(): unknown;
+    _id: string;
+    contacts: any;
+  }; // Replace with the appropriate type for the user object
 }
 
 /**By wrapping your async controller actions with asyncHandler, 
@@ -86,16 +90,24 @@ export const createUser: RequestHandler = asyncHandler(
 );
 
 export const getUsers: RequestHandler = asyncHandler(async (req, res) => {
-  const users = await User.find({}, { refreshToken: 0, token: 0 }).populate("messages");
+  const users = await User.find({}, { refreshToken: 0, token: 0 })
+    .select("-password -passwordChangedAt -token -refreshToken")
+    .populate("messages", "content sender receiver")
+    .populate("contacts", "firstName lastName email mobile image")
+    .populate("rooms", "messages members owner");
   res.json(users);
 });
 
 export const getUserById: RequestHandler = asyncHandler(async (req, res) => {
   const { id } = req.params;
   isValidMongoId(id);
-  const user = await User.findById(id).select('-refreshToken -token');
+  const user = await User.findById(id)
+    .select("-password -passwordChangedAt -token -refreshToken")
+    .populate("messages", "content sender receiver")
+    .populate("contacts", "firstName lastName email mobile image")
+    .populate("rooms", "messages members owner");
   // Excluding the refreshToken and accessToken fields from the query result
-  
+
   if (!user) {
     res.status(404).json({ message: "User not found" });
     return;
@@ -163,11 +175,10 @@ export const deleteUser: RequestHandler = asyncHandler(async (req, res) => {
   res.json({ message: "User deleted successfully" });
 });
 
-// ...
 
 export const blockUser: RequestHandler = asyncHandler(async (req, res) => {
   const { id } = req.params;
-
+  isValidMongoId(id);
   const user = await User.findById(id);
   if (!user) {
     res.status(404).json({ message: "User not found" });
@@ -183,7 +194,7 @@ export const blockUser: RequestHandler = asyncHandler(async (req, res) => {
 
 export const unblockUser: RequestHandler = asyncHandler(async (req, res) => {
   const { id } = req.params;
-
+  isValidMongoId(id);
   const user = await User.findById(id);
   if (!user) {
     res.status(404).json({ message: "User not found" });
@@ -254,7 +265,7 @@ export const updateUserRole: RequestHandler<
 > = async (req, res) => {
   const { id } = req.params;
   const { role } = req.body;
-
+  isValidObjectId(id);
   try {
     // Find the user by userId
     const user = await User.findById(id);
@@ -271,5 +282,47 @@ export const updateUserRole: RequestHandler<
   } catch (error) {
     console.error("Error updating user role:", error);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Add user to contacts
+
+export const addUserToContacts: RequestHandler = async (
+  req: Request,
+  res: Response
+) => {
+  const customReq = req as CustomRequest; // Cast 'req' to 'CustomRequest'
+  const { contactId } = req.params;
+  const user = customReq.user;
+  isValidObjectId(contactId);
+  try {
+    // Find the message by ID
+    const contact = await User.findById(contactId);
+    console.log(contact);
+    if (!contact) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    // Check if the user has already liked the message
+    const alreadyAddedIndex = user.contacts.indexOf(contactId);
+
+    if (alreadyAddedIndex !== -1) {
+      // User already in contacts's list, so remove him
+      user.contacts.splice(alreadyAddedIndex, 1);
+    } else {
+      // User is not in contacts's list, so add him
+      user.contacts.push(contactId);
+    }
+    // Save the updated user
+    await user.save();
+
+    res.json({
+      message: "User's contacts's list updated successfully",
+      user,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to update like" });
   }
 };

@@ -10,9 +10,11 @@ import {
   unblockUser,
   getProfile,
   updateUserRole,
+  addUserToContacts
 } from "../controllers/userController";
 import authMiddleware from "../middlewares/authMiddleware";
 import isAdminMiddleware from "../middlewares/isAdminMiddleware";
+import asyncHandler  from 'express-async-handler';
 
 /**This file defines routes related to user management. 
 It can include routes for user registration, login, 
@@ -37,11 +39,11 @@ userRouter.get("/", authMiddleware, isAdminMiddleware, getUsers);
 // Get a specific user
 userRouter.get("/:id", authMiddleware, isAdminMiddleware, getUserById);
 
-// Route: PUT /api/users/:id
+// Route: PUT /api/users/update
 // Update a specific user
 userRouter.put("/update", authMiddleware, updateUser);
 
-// Route: PUT /api/users/:id/password
+// Route: PUT /api/users/password
 // Update a specific user' password
 userRouter.put("/password", authMiddleware, updatePassword);
 
@@ -49,16 +51,21 @@ userRouter.put("/password", authMiddleware, updatePassword);
 // Delete a specific user
 userRouter.delete("/:id", authMiddleware, isAdminMiddleware, deleteUser);
 
-// Route: PUT /api/user/:id/block
+// Route: PUT /api/users/block/:id
 // Block a specific user
-userRouter.put("/:id/block", authMiddleware, isAdminMiddleware, blockUser);
+userRouter.put("/block/:id", authMiddleware, isAdminMiddleware, blockUser);
 
-// Route: PUT /api/users/:id/unblock
+// Route: PUT /api/users/unblock/:id
 // Unblock a specific user
-userRouter.put("/:id/unblock", authMiddleware, isAdminMiddleware, unblockUser);
+userRouter.put("/unblock/:id", authMiddleware, isAdminMiddleware, unblockUser);
 
-// Route: PUT /api/users/:id/role
+// Route: PUT /api/users/role/:id
 // Update a specific user role
-userRouter.put("/:id/role", authMiddleware, isAdminMiddleware, updateUserRole);
+userRouter.put("/role/:id", authMiddleware, isAdminMiddleware, updateUserRole);
+
+// Route: PUT /api/users/add-contact/:contactId
+// Update specific user contacts's list
+userRouter.put("/add-contact/:contactId", authMiddleware,  asyncHandler(addUserToContacts));
 
 export default userRouter;
+

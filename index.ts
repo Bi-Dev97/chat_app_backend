@@ -10,6 +10,7 @@ import cookieParser from "cookie-parser";
 import morgan from "morgan";
 import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
+import roomRouter from "./routes/roomRoutes";
 
 
 
@@ -20,7 +21,7 @@ the base URL or prefix for your routes. It
 can also import and use other route files to 
 organize your routes into separate modules. */
 
-dotenv.config();
+
 
 /**In TypeScript, you can use type annotations 
 (: Express) to explicitly specify the type of
@@ -32,8 +33,14 @@ you are ensuring that the app variable is of
 type Express and can be used as an instance of 
 the Express application with the associated 
 methods and properties provided by  */
-const app: Express = express();
+const app: Express = express();/**express() creates an instance 
+of the Express application, which is assigned to the app variable. 
+You can then use the app variable to configure your application 
+and define your routes. */
 
+
+// Your application configuration and routes go here
+dotenv.config();
 const PORT = process.env.PORT || 5433;
 const server = createServer(app);
 
@@ -61,6 +68,13 @@ io.on('connection', (socket) => {
   });
 
   // Handle other socket events
+   // Socket.IO event to handle adding members to a room
+   socket.on('addMembers', ({ roomId, members }) => {
+    // Implement your logic to add members to the room
+
+    // Emit a custom event to inform the clients in the room about the new members
+    socket.to(roomId).emit('membersAdded', { roomId, members });
+  });
 
   // Disconnect event
   socket.on('disconnect', () => {
@@ -74,8 +88,8 @@ io.on('connection', (socket) => {
 
 
 
-server.listen(6400, () => {
-  console.log('WebSocket server listening on port 6400');
+server.listen(5101, () => {
+  console.log('WebSocket server listening on port 5101');
 });
 
 // If you are using typescript include this declare block
@@ -115,7 +129,7 @@ app.get("/", (req, res) => {
 app.use("/api/users", userRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/messages", messageRouter);
-
+app.use("/api/rooms", roomRouter)
 
 
 // Other app configurations and middleware
@@ -140,6 +154,8 @@ occur in your application's routes or other middleware will be caught
    troubleshoot errors in your application.*/
 app.use(errorHandlerMiddleware)
 
+/**Note that app.listen() is used to start the server and listen for 
+incoming requests on the specified port */
 app.listen(PORT, () => {
   console.log(`Server is Running at http://localhost:${PORT}`);
 });
