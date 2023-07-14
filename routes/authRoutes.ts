@@ -16,7 +16,7 @@ import authMiddleware from "../middlewares/authMiddleware";
 
 const authRouter = express.Router();
 
-authRouter.post("/login", login);
+authRouter.post("/", login);
 authRouter.get("/google-auth", googleLogin);
 authRouter.post("/admin-login", loginAdmin);
 authRouter.post("/password-reset-token", passwordResetToken);
